@@ -1,0 +1,27 @@
+{
+  "name": "unicorngo-oracle",
+  "version": "1.0.0",
+  "description": "UnicornGo Oracle",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krogla/unicorngo-oracle.git"
+  },
+  "keywords": [
+    "unicorngo",
+    "oracle",
+    "smart",
+    "contracts"
+  ],
+  "author": "KRogLA <i@krogla.me>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/krogla/unicorngo-oracle/issues"
+  },
+  "homepage": "https://github.com/krogla/unicorngo-oracle",
+  "devDependencies": {},
+  "dependencies": {
+    "request": "^2.85.0",
+    "web3": "^1.0.0-beta.30"
+  }
+}
