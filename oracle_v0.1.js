@@ -1,8 +1,4 @@
-/*
-A script that returns some filtered events from an Ethereum smart br_contract.
-Your br_contract will require a solidity event and it will need to be triggered at least once before you run the script.
-For an explanation of this code, navigate to the wiki https://github.com/ThatOtherZach/Web3-by-Example/wiki/Getting-Smart-Contract-Events
-*/
+'use strict';
 
 // Add the web3 node module
 var Web3 = require('web3');
@@ -10,7 +6,7 @@ var request = require('request');
 
 // Show web3 where it needs to look for the Ethereum node.
 // web3 = new Web3(new Web3.providers.HttpProvider('https://ropsten.infura.io/YOUR-API-TOKEN-HERE'));
-web3 = new Web3(new Web3.providers.WebsocketProvider("ws://127.0.0.1:8545"));
+var web3 = new Web3(new Web3.providers.WebsocketProvider("ws://127.0.0.1:8545"));
 
 // The address we want to search by.
 const br_addr = "0x8F0C5c75053bE22A40bAD80C71a57AEc18918E90";
