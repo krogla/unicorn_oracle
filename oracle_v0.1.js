@@ -1,5 +1,5 @@
 'use strict';
-
+require('dotenv').config()
 // Add the web3 node module
 var Web3 = require('web3');
 var request = require('request');
@@ -9,11 +9,9 @@ var request = require('request');
 var web3 = new Web3(new Web3.providers.WebsocketProvider("ws://127.0.0.1:8545"));
 
 // The address we want to search by.
-const br_addr = "0x8F0C5c75053bE22A40bAD80C71a57AEc18918E90";
-const bb_addr = "0x5046aa27A8429E7256dB737BB80c97232Df7c8b9";
+const br_addr = process.env.BREEDING_ADDRESS;
+const bb_addr = process.env.BLACKBOX_ADDRESS;
 //urls to backend (or dummyserver)
-const url_gen0 = 'http://localhost:9000/v1/genetics/generate?image=3ewtydgshjxcn54300068ew789soixjchvghsds';
-const url_hybr = 'http://localhost:9000/v1/genetics/pair?image=3ewtydgshjxcn54300068ew789soixjchvghsds';
 
 // Show the Hash in the console.
 console.log('Events by Address: ' + br_addr);
@@ -1175,7 +1173,7 @@ const bb_abi = [
 var br_contract = new web3.eth.Contract(br_abi, br_addr);
 var bb_contract = new web3.eth.Contract(bb_abi, bb_addr);
 
-web3.eth.accounts.wallet.add('0xb3de95fd292b03c783287f08f52ef9a7d5030b6261c81fa1a473b00aae1ffca3');
+web3.eth.accounts.wallet.add(process.env.OWNER_KEY);
 
 br_contract.events.CreateUnicorn()
     .on('data', function (event) {
@@ -1192,7 +1190,7 @@ br_contract.events.CreateUnicorn()
         var request_data;
         var url;
         if (parent1Id || parent2Id) {
-            url = url_hybr;
+            url = process.env.URL_HYBR;
             request_data = {
                 parents: [
                     {unicorn_blockchain_id: parent1Id},
@@ -1203,7 +1201,7 @@ br_contract.events.CreateUnicorn()
                 owner_blockchain_id: event.returnValues.owner
             };
         } else {
-            url = url_gen0;
+            url = process.env.URL_GEN0;
             request_data = {
                 unicorn_blockchain_id: childId,
                 owner_blockchain_id: event.returnValues.owner
