@@ -4,7 +4,7 @@
 Usage:
 
 - run `npm install`
-- set addresses inside oracle_v0.1.js
+- copy `.env.example` to `.env` and modify it
 - on 1st console run: `node dummyserver.js`
 - on 2nd console run: `node oracle_v0.1.js`
 - enjoy 🤡
