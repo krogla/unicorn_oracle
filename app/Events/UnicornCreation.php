@@ -11,18 +11,13 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class UnicornCreate implements ShouldBroadcastNow
+class UnicornCreation implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
 	public $data;
 
-	/**
-	 * The name of the queue on which to place the event.
-	 *
-	 * @var string
-	 */
-//    public $broadcastQueue = 'your-queue-name';
+
 
 	/**
 	 * Create a new event instance.
@@ -34,7 +29,6 @@ class UnicornCreate implements ShouldBroadcastNow
 		$this->data = $data;
 	}
 
-
     /**
      * Get the channels the event should broadcast on.
      *
@@ -42,27 +36,7 @@ class UnicornCreate implements ShouldBroadcastNow
      */
     public function broadcastOn()
     {
-        return new PrivateChannel('unicorn-events');
+        return new Channel('unicorn');
     }
-
-	/**
-	 * The event's broadcast name.
-	 *
-	 * @return string
-	 */
-//    public function broadcastAs()
-//    {
-//        return 'unicorn.created';
-//    }
-
-	/**
-	 * Get the data to broadcast.
-	 *
-	 * @return array
-	 */
-//    public function broadcastWith()
-//    {
-//        return ['id' => $this->user->id];
-//    }
 
 }

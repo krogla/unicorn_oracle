@@ -3,6 +3,8 @@ require('dotenv').config()
 // Add the web3 node module
 var Web3 = require('web3');
 var request = require('request');
+const redis = require('redis')
+const redis_pub = redis.createClient();
 
 // Show web3 where it needs to look for the Ethereum node.
 // web3 = new Web3(new Web3.providers.HttpProvider('https://ropsten.infura.io/YOUR-API-TOKEN-HERE'));
@@ -1215,6 +1217,7 @@ br_contract.events.CreateUnicorn()
             if (response.statusCode == 200) {
                 console.log('Set unicorn gen: ' + body.chain);
 
+                publishUnicornCreationEvent(childId)
                 const data = bb_contract.methods.setGeneManual(childId, body.chain).encodeABI();
 
                 web3.eth.sendTransaction(
@@ -1251,3 +1254,13 @@ br_contract.events.CreateUnicorn()
     })
     .on('error', console.error);
 
+
+function publishUnicornCreationEvent(unicornId) {
+    redis_pub.publish("unicorn",
+        JSON.stringify({
+            "event": "App\\Events\\UnicornCreation",
+            "data": {
+                unicornId
+            }
+        }));
+}
