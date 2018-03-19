@@ -55289,26 +55289,43 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
 
 /* harmony default export */ __webpack_exports__["default"] = ({
     data: function data() {
         return {
-            eventlist: []
+            eventCreate: [],
+            eventHybr: [],
+            eventTransfer: [],
+            socket: null
         };
     },
 
     computed: {},
     created: function created() {
-        Echo.channel('unicorn2').listen('UnicornCreation2', function (e) {
-            if (this.eventlist.push(e) > 20) {
-                this.eventlist.shift();
+        Echo.channel('unicorn').listen('.unicorn.creation', function (e) {
+            // console.log('unicorn.creation')
+            if (this.eventCreate.push(e) > 20) {
+                this.eventCreate.shift();
+            }
+        }.bind(this)).listen('.unicorn.hybridisation', function (e) {
+            // console.log('unicorn.hybridisation')
+            if (this.eventHybr.push(e) > 20) {
+                this.eventHybr.shift();
+            }
+        }.bind(this)).listen('.unicorn.transfer', function (e) {
+            // console.log('unicorn.transfer')
+            if (this.eventTransfer.push(e) > 20) {
+                this.eventTransfer.shift();
             }
         }.bind(this));
-        // .listen('UnicornHybridisation', function (e) {
-        //     if (this.eventlist.push(e) > 20) {
-        //         this.eventlist.shift();
-        //     }
-        // }.bind(this))
     },
     mounted: function mounted() {
         console.log('Component mounted.');
@@ -55327,9 +55344,20 @@ var render = function() {
   var _c = _vm._self._c || _h
   return _c(
     "ul",
-    _vm._l(_vm.eventlist, function(event) {
-      return _c("li", [_vm._v("\n        " + _vm._s(event) + "\n    ")])
-    })
+    [
+      _vm._l(_vm.eventCreate, function(event) {
+        return _c("li", [_vm._v("\n        " + _vm._s(event) + "\n    ")])
+      }),
+      _vm._v(" "),
+      _vm._l(_vm.eventHybr, function(event) {
+        return _c("li", [_vm._v("\n        " + _vm._s(event) + "\n    ")])
+      }),
+      _vm._v(" "),
+      _vm._l(_vm.eventTransfer, function(event) {
+        return _c("li", [_vm._v("\n        " + _vm._s(event) + "\n    ")])
+      })
+    ],
+    2
   )
 }
 var staticRenderFns = []

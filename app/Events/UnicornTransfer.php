@@ -11,9 +11,9 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 
-class UnicornCreation implements ShouldBroadcastNow
+class UnicornTransfer implements ShouldBroadcastNow
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+	use Dispatchable, InteractsWithSockets, SerializesModels;
 
 	public $data;
 
@@ -27,15 +27,15 @@ class UnicornCreation implements ShouldBroadcastNow
 		$this->data = $data;
 	}
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return \Illuminate\Broadcasting\Channel|array
-     */
-    public function broadcastOn()
-    {
-        return new Channel('unicorn');
-    }
+	/**
+	 * Get the channels the event should broadcast on.
+	 *
+	 * @return \Illuminate\Broadcasting\Channel|array
+	 */
+	public function broadcastOn()
+	{
+		return new Channel('unicorn');
+	}
 
 	/**
 	 * The event's broadcast name.
@@ -44,6 +44,6 @@ class UnicornCreation implements ShouldBroadcastNow
 	 */
 	public function broadcastAs()
 	{
-		return 'unicorn.creation';
+		return 'unicorn.transfer';
 	}
 }

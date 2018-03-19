@@ -15,6 +15,10 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+
+//Route::get('/tt', function () {
+//	event(new \App\Events\UnicornTransfer());
+//});
 Auth::routes();
 
 //Route::get('/home', 'HomeController@index')->name('home');
