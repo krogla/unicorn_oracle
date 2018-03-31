@@ -48,6 +48,25 @@
         },
         mounted() {
             console.log('Component mounted.')
+
+            this.socket = io("http://52.214.37.156:8080", {
+                transportOptions: {
+                    polling: {
+                        extraHeaders: {
+                            "x-auth": "1234",
+                            "x-user-id": 345,
+                            "x-blockchain-id": "0x123123"
+                        }
+                    }
+                },
+                query: {
+                    "x-auth": "1234",
+                    "x-user-id": 345,
+                    "x-blockchain-id": "0x123123"
+                }
+            })
+            this.socket.on("auth_success", console.log)
+
         },
         methods: {}
     }

@@ -26,29 +26,6 @@ function printInfo() {
 }
 
 
-// function syncTrans(data, nonce, callback) {
-//      web3.eth.sendTransaction(
-//         {
-//             from: 0, //account index in wallet
-//             to: candy_addr,
-//             value: 0,
-//             gas: 500000,
-//             gasPrice: 2000000000, //2 gwei
-//             data,
-//             nonce
-//         })
-//         .on('transactionHash', result => {
-//             callback(null, result)
-//             // nonce++
-//         })
-//         .on('error', error => {
-//             // console.error(error)
-//             callback(error, null)
-//             // syncTrans(holders, cursor)
-//         })
-//
-// }
-
 let count = 0, send = 0, notsend = 0, updated = 0, nonce = 0;
 // let nonce = 0, prevnonce = 0;
 
@@ -68,9 +45,9 @@ MongoClient.connect("mongodb://localhost:27017", function(err, client) {
     //     console.log(r.modifiedCount)
     // })();
 
-    web3.eth.getTransactionCount(web3.eth.accounts.wallet[0].address, 'pending')
-        .then((_nonce) => {
-            nonce = _nonce
+    // web3.eth.getTransactionCount(web3.eth.accounts.wallet[0].address, 'pending')
+    //     .then((_nonce) => {
+            nonce = 7819;
             let cursor =  holders
                 .find({ count: { $gte: 1}, contract: false, candy: 0})
                 .sort({balance: -1})
@@ -126,7 +103,7 @@ MongoClient.connect("mongodb://localhost:27017", function(err, client) {
                         // return false;
                     }
                 });
-        })
+        // })
 
     process.stdout.write("\n");
 })
