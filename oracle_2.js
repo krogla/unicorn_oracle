@@ -4,10 +4,15 @@ let log = (...args) => {
   console.log('[' + new Date().toUTCString() + ']', ...args)
 };
 
-log('UnicornGO Oracle 2.1 by KRogLA');
-
 require('dotenv').config()
 const fs = require('fs')
+
+if (fs.existsSync(process.env.LOCKFILE)) {
+  log('locked')
+  process.exit(1)
+}
+
+
 const ethers = require('ethers')
 // const lockFile = require('lockfile')
 // const backend_sem = require('semaphore')(1)
@@ -15,10 +20,6 @@ const events_sem = require('semaphore')(1)
 const request = require('request')
 const redis_pub = require('redis').createClient()
 
-if (fs.existsSync(process.env.LOCKFILE)) {
-  console.log('locked')
-  process.exit(1)
-}
 fs.writeFileSync(process.env.LOCKFILE, '')
 // log(typeof process.env.TESTNET)
 let network = process.env.TESTNET === '1' ? ethers.providers.networks.rinkeby : ethers.providers.networks.homestead
@@ -34,8 +35,8 @@ let provider = new ethers.providers.FallbackProvider([
   etherscanProvider
 ])
 let wallet = new ethers.Wallet(process.env.ORACLE_KEY, provider);
-log('work on', provider.name, wallet.address)
 
+log('UnicornGO Oracle 2.1 by KRogLA /',provider.name, '/',wallet.address);
 
 let bb_contract = null
 let ut_contract = null
@@ -78,7 +79,7 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
     if (nonce != blockchainStatus[2]) {
       nonce = blockchainStatus[2]
     }
-    log("gasPrice", ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei, nonce', nonce, 'from', fromBlock,"to", toBlock)
+    log("gasPrice", ethers.utils.formatUnits(gasPrice, 'gwei'),'gwei', '/ nonce', nonce, '/ blocks', fromBlock,"->", toBlock)
     //breeding
     br_contract = new ethers.Contract(process.env.BREEDING_ADDRESS, process.env.BREEDING_ABI, wallet)
     ut_contract = new ethers.Contract(process.env.UNICORNTOKEN_ADDRESS, process.env.UNICORNTOKEN_ABI, wallet)
@@ -196,6 +197,7 @@ function finish() {
     fs.writeFileSync(blockfile, JSON.stringify({completedBlock: autoMode ? toBlock : completedBlock, nonce}), 'utf8')
   // }
   fs.unlinkSync(process.env.LOCKFILE)
+  log('finished')
   process.exit(0)
 }
 
@@ -208,7 +210,7 @@ function eventTransfer({unicornId, from, to}) {
       recipients.push(to);
       Promise.all([
       publishUnicornEvent('transfer_remove', [from], {unicornId: unicornId.toNumber(), from, to}),
-      publishUnicornEvent('transfer_add', [to], {unicornId: unicornId.toNumber(), from, to}).
+      publishUnicornEvent('transfer_add', [to], {unicornId: unicornId.toNumber(), from, to}),
       updateUnicornOwner(unicornId.toNumber(), {owner_blockchain_id: to})
         ]).then(results=>{
           resolve(true)
