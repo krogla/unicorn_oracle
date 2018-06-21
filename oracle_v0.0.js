@@ -1206,8 +1206,8 @@ const bb_contract = new web3.eth.Contract(bb_abi, bb_addr);
 // // }
 // )
 //     .then(function (events) {
-//         for (i = 0; i < events.length; i++) {
-//             var eventObj = events[i];
+//         for (let i = 0; i < events.length; i++) {
+//             let eventObj = events[i];
 //             console.log('id: ' + eventObj.returnValues.unicornId);
 //             console.log('owner: ' + eventObj.returnValues.owner);
 //             // console.log('Greeting: ' + web3.utils.hexToAscii(eventObj.returnValues.name));

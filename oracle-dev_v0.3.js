@@ -15,9 +15,10 @@ const Web3 = require('web3');
 const request = require('request');
 // const cache = require('redis').createClient();
 const redis_pub = require('redis').createClient();
-
+const RedisSMQ = require("rsmq");
 //connect to redis
 // let io = require('socket.io-emitter')({ host: '127.0.0.1', port: 6001 });
+let rsmq = new RedisSMQ( {host: "127.0.0.1", port: 6379, ns: "oracle_dev"} );
 
 // Using the IPC provider in node.js
 // var net = require('net');
@@ -25,14 +26,7 @@ const redis_pub = require('redis').createClient();
 // or
 // var web3 = new Web3(new Web3.providers.IpcProvider('/Users/myuser/Library/Ethereum/geth.ipc', net)); // mac os path
 
-const web3 = new Web3(new Web3.providers.WebsocketProvider(process.env.NODE_ADDRESS_WS));
-// const web3_infura = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_ADDRESS));
-log('listening on '+process.env.NODE_ADDRESS_WS);
-// log('work on '+process.env.INFURA_ADDRESS);
-web3.eth.accounts.wallet.add(process.env.ORACLE_KEY);
-let fromAddress = web3.eth.accounts.wallet[0].address
-// let fromAddress = "0x5a8aAD505a44165813ECDFa213d0615293e33671"
-log('oracle address:', fromAddress);
+
 const br_addr = process.env.BREEDING_ADDRESS;
 // const brdb_addr = process.env.BREEDINGDB_ADDRESS;
 const bb_addr = process.env.BLACKBOX_ADDRESS;
@@ -42,6 +36,22 @@ const br_abi = JSON.parse(process.env.BREEDING_ABI)
 // const brdb_abi = JSON.parse(process.env.BREEDINGDB_ABI)
 const bb_abi = JSON.parse(process.env.BLACKBOX_ABI)
 const ut_abi = JSON.parse(process.env.UNICORNTOKEN_ABI)
+
+
+let ws_url = process.env.NODE_ADDRESS_WS
+let http_url = process.env.NODE_ADDRESS
+
+function f() {
+  
+}
+
+const web3 = new Web3(new Web3.providers.WebsocketProvider(ws_url));
+// const web3_infura = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_ADDRESS));
+log('(re)start listening on '+ ws_url);
+// log('work on '+process.env.INFURA_ADDRESS);
+web3.eth.accounts.wallet.add(process.env.ORACLE_KEY);
+
+log('oracle address:', web3.eth.accounts.wallet[0].address);
 
 // Define the br_contract ABI and Address
 let br_contract = new web3.eth.Contract(br_abi, br_addr);
@@ -77,14 +87,14 @@ let args = process.argv.slice(2);
 //                 // let parent1Id = parseInt(event.returnValues.firstAncestorUnicornId);
 //                 // let parent2Id = parseInt(event.returnValues.secondAncestorUnicornId);
 //
-//                 ut_contract.methods.unicorns(unicornId).call({from: fromAddress})
+//                 ut_contract.methods.unicorns(unicornId).call({from: web3.eth.accounts.wallet[0].address})
 //                     .then(unicorn => {
 //                         // log(unicornId,unicorn);
 //
 //                         if (!unicorn.gene) {
 //                             log('Request past gene for', unicornId, parent1Id, parent2Id);
 //                             (async () => {
-//                                 return await ut_contract.methods.ownerOf(unicornId).call({from: fromAddress});
+//                                 return await ut_contract.methods.ownerOf(unicornId).call({from: web3.eth.accounts.wallet[0].address});
 //                             })().then(owner => {
 //                                 requestUnicornGene(unicornId, owner, parent1Id, parent2Id);
 //                             }).catch(e => {
@@ -107,7 +117,7 @@ let args = process.argv.slice(2);
 //
 
 // ressurector_semaphore.take(() => {
-//     ut_contract.methods.totalSupply().call({from: fromAddress})
+//     ut_contract.methods.totalSupply().call({from: web3.eth.accounts.wallet[0].address})
 //         .then(_total => {
 //             ressurectorCurId = _total;
 //             log("ressurectorLastId",ressurectorLastId, "ressurectorCurId", ressurectorCurId);
@@ -117,7 +127,7 @@ let args = process.argv.slice(2);
 /*
 let ressurector = setInterval(()=>{
     ressurector_semaphore.take(() => {
-        // ut_contract.methods.totalSupply().call({from: fromAddress}).then(function (total) {
+        // ut_contract.methods.totalSupply().call({from: web3.eth.accounts.wallet[0].address}).then(function (total) {
         if (ressurectorCurId == ressurectorLastId) return;
             // let lastId = total - 1
             // if (total > resurrectorCount && ressurectorLastId > lastId - resurrectorCount) {
@@ -137,13 +147,13 @@ let ressurector = setInterval(()=>{
             ressurector_cycle_semaphore.take(()=> {
                 for (let unicornId = ressurectorLastId; unicornId < toId; unicornId++) {
                     past_events_semaphore.take(() => {
-                        ut_contract.methods.unicorns(unicornId).call({from: fromAddress}).then(unicorn => {
+                        ut_contract.methods.unicorns(unicornId).call({from: web3.eth.accounts.wallet[0].address}).then(unicorn => {
                             // log('[resurrector] check', unicornId)
                             if (!unicorn.gene) {
                                 log('[resurrector] gene need:', unicornId)
                                 resurrectedCnt++;
                                 // printInfo();
-                                ut_contract.methods.ownerOf(unicornId).call({from: fromAddress}).then(currentOwner => {
+                                ut_contract.methods.ownerOf(unicornId).call({from: web3.eth.accounts.wallet[0].address}).then(currentOwner => {
                                     br_contract.getPastEvents('CreateUnicorn', {
                                         filter: {unicornId: unicornId}, // Using an array means OR: e.g. 20 or 23
                                         fromBlock: 0,
@@ -190,7 +200,7 @@ let ressurector = setInterval(()=>{
 
 */
 transaction_sem.take(() => {
-    web3.eth.getTransactionCount(fromAddress, 'pending')
+    web3.eth.getTransactionCount(web3.eth.accounts.wallet[0].address, 'pending')
         .then((_nonce) => {
             nonce = _nonce;
             log("nonce:",nonce);
@@ -231,14 +241,14 @@ br_contract.events.SelfHybridization()
         let price = web3.utils.fromWei(event.returnValues.price, 'ether');
         (async () => {
             return await Promise.all([
-                ut_contract.methods.ownerOf(firstId).call({from: fromAddress}),
+                ut_contract.methods.ownerOf(firstId).call({from: web3.eth.accounts.wallet[0].address}),
             ]);
         })().then(recipients => {
             publishUnicornEvent('self-pair', recipients, {
                 unicornId: id,
                 firstUnicornId: firstId,
                 secondUnicornId: secondId,
-                priceCandy: price,
+                price: price,
             })
         })
     })
@@ -254,8 +264,8 @@ br_contract.events.HybridizationAccept()
             let price = web3.utils.fromWei(event.returnValues.price, 'ether');
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(firstId).call({from: fromAddress}),
-                    ut_contract.methods.ownerOf(secondId).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(firstId).call({from: web3.eth.accounts.wallet[0].address}),
+                    ut_contract.methods.ownerOf(secondId).call({from: web3.eth.accounts.wallet[0].address})
                 ]);
             })().then(recipients => {
                 updateUnicornStatus(
@@ -272,7 +282,7 @@ br_contract.events.HybridizationAccept()
                         unicornId: id,
                         firstUnicornId: firstId,
                         secondUnicornId: secondId,
-                        priceCandy: price,
+                        price: price,
                     });
             })
         })
@@ -289,7 +299,7 @@ br_contract.events.HybridizationAccept()
 
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(id).call({from: web3.eth.accounts.wallet[0].address})
                 ])
             })().then(recipients => {
                 updateUnicornStatus(
@@ -304,7 +314,7 @@ br_contract.events.HybridizationAccept()
                     recipients,
                     {
                         unicornId: id,
-                        priceCandy: price,
+                        price: price,
                     });
             })
         })
@@ -316,7 +326,7 @@ br_contract.events.HybridizationAccept()
             let id = parseInt(event.returnValues.unicornId);
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(id).call({from: web3.eth.accounts.wallet[0].address})
                 ]);
             })().then(recipients => {
                 updateUnicornStatus(
@@ -354,7 +364,7 @@ br_contract.events.HybridizationAccept()
 
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(id).call({from: web3.eth.accounts.wallet[0].address})
                 ]);
             })().then(recipients => {
                 updateUnicornStatus(
@@ -370,7 +380,7 @@ br_contract.events.HybridizationAccept()
                     recipients,
                     {
                         unicornId: id,
-                        price: priceEth,
+                        priceEth: priceEth,
                         priceCandy: priceCandy
                     });
             })
@@ -383,7 +393,7 @@ br_contract.events.HybridizationAccept()
             let id = parseInt(event.returnValues.unicornId);
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(id).call({from: web3.eth.accounts.wallet[0].address})
                 ]);
             })().then(recipients => {
                 updateUnicornStatus(
@@ -420,7 +430,7 @@ br_contract.events.HybridizationAccept()
 
             (async () => {
                 return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
+                    ut_contract.methods.ownerOf(id).call({from: web3.eth.accounts.wallet[0].address})
                 ]);
             })().then(recipients => {
                 updateUnicornStatus(
@@ -436,7 +446,7 @@ br_contract.events.HybridizationAccept()
                     recipients,
                     {
                         unicornId: id,
-                        price: priceEth,
+                        priceEth: priceEth,
                         priceCandy: priceCandy
                     });
             })

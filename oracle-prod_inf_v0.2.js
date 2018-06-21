@@ -18,12 +18,14 @@ const redis_pub = require('redis').createClient();
 
 //connect to redis
 // let io = require('socket.io-emitter')({ host: '127.0.0.1', port: 6001 });
+let ws_url = process.env.INFURA_ADDRESS_WS
+let http_url = process.env.INFURA_ADDRESS
 
-const web3 = new Web3(new Web3.providers.WebsocketProvider(process.env.NODE_ADDRESS_WS));
-// const web3 = new Web3(new Web3.providers.WebsocketProvider(process.env.INFURA_ADDRESS_WS));
+// const web3 = new Web3(new Web3.providers.WebsocketProvider(process.env.NODE_ADDRESS));
+const web3 = new Web3(new Web3.providers.WebsocketProvider(ws_url));
 // const web3 = new Web3(new Web3.providers.HttpProvider(process.env.INFURA_ADDRESS));
-log('listening on '+process.env.NODE_ADDRESS_WS);
-// log('work on '+process.env.INFURA_ADDRESS);
+log('listening on', ws_url);
+log('work on', http_url);
 // web3.eth.accounts.wallet.add(process.env.ORACLE_KEY);
 let web3_signer
 let fromAddress = initWeb3Signer();
@@ -47,23 +49,21 @@ let args = process.argv.slice(2);
 
 
 function initWeb3Signer() {
-    web3_signer = new Web3(new Web3.providers.WebsocketProvider(process.env.NODE_ADDRESS_WS));
+    web3_signer = new Web3(new Web3.providers.HttpProvider(http_url));
     web3_signer.eth.accounts.wallet.add(process.env.ORACLE_KEY);
-    let addr = web3_signer.eth.accounts.wallet[0].address
-  // "0x5a8aAD505a44165813ECDFa213d0615293e33671"
-
-    return addr
+    transaction_sem.take(() => {
+        web3_signer.eth.getTransactionCount(web3_signer.eth.accounts.wallet[0].address, 'pending')
+            .then((_nonce) => {
+                let _nonce2 = parseInt(args[0] ? args[0] : '0');
+                nonce = _nonce > _nonce2 ?  _nonce : _nonce2;
+                log("nonce:", nonce);
+                transaction_sem.leave();
+            })
+    });
+    return web3_signer.eth.accounts.wallet[0].address
 }
 
-transaction_sem.take(() => {
-  web3_signer.eth.getTransactionCount(fromAddress, 'pending')
-    .then((_nonce) => {
-      let _nonce2 = parseInt(args[0] ? args[0] : '0');
-      nonce = _nonce > _nonce2 ?  _nonce : _nonce2;
-      log("nonce:", nonce);
-      transaction_sem.leave();
-    })
-});
+
 // br_contract.getPastEvents('CreateUnicorn', {
 // // bb_contract.getPastEvents('GeneHybritizationRequest', {
 // // bb_contract_old1.getPastEvents('Gene0Request', {
@@ -187,262 +187,262 @@ let ressurector = setInterval(()=>{
 }, resurrectorInterval)
 */
 
-
+function listenToEvent() {
 // bb_contract.events.GeneHybritizationRequest()
-    br_contract.events.CreateUnicorn()
-        .on('data', function (event) {
-            // log(event);
-            // let childId = web3.utils.toBN(event.returnValues.unicornId);
-            // let parent1Id = web3.utils.toBN(event.returnValues.parent1);
-            // let parent2Id = web3.utils.toBN(event.returnValues.parent2);
+  br_contract.events.CreateUnicorn()
+    .on('data', function (event) {
+      // log(event);
+      // let childId = web3.utils.toBN(event.returnValues.unicornId);
+      // let parent1Id = web3.utils.toBN(event.returnValues.parent1);
+      // let parent2Id = web3.utils.toBN(event.returnValues.parent2);
 
-            let unicornId = parseInt(event.returnValues.unicornId);
-            let parent1Id = parseInt(event.returnValues.parent1);
-            let parent2Id = parseInt(event.returnValues.parent2);
-            let owner = event.returnValues.owner;
-            // log('Request new gene for', unicornId, parent1Id, parent2Id);
+      let unicornId = parseInt(event.returnValues.unicornId);
+      let parent1Id = parseInt(event.returnValues.parent1);
+      let parent2Id = parseInt(event.returnValues.parent2);
+      let owner = event.returnValues.owner;
+      // log('Request new gene for', unicornId, parent1Id, parent2Id);
 
-            requestUnicornGene(unicornId, owner, parent1Id, parent2Id);
+      requestUnicornGene(unicornId, owner, parent1Id, parent2Id);
 
+    })
+    // .on('changed', function (event) {
+    //     // remove event from local database
+    //     console.warn('REMOVED', event);
+    // })
+    .on('error', log);
+
+
+  br_contract.events.HybridizationAccept()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.newUnicornId);
+      let firstId = parseInt(event.returnValues.firstUnicornId);
+      let secondId = parseInt(event.returnValues.secondUnicornId);
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(firstId).call({from: fromAddress}),
+          ut_contract.methods.ownerOf(secondId).call({from: fromAddress})
+        ]);
+      })().then(recipients => {
+        updateUnicornStatus(
+          firstId,
+          {
+            blockchain_id: firstId,
+            candy_breed_cost: '',
+            operation_id: 7,
+            operation_status_id: 2,
+          },
+          'pair-accept',
+          recipients,
+          {
+            unicornId: id,
+            firstUnicornId: firstId,
+            secondUnicornId: secondId,
+          });
+      })
+    })
+    // .on('changed', function (event) {
+    //     // remove event from local database
+    //     console.warn('REMOVED', event);
+    // })
+    .on('error', log);
+
+  br_contract.events.HybridizationAdd()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.unicornId);
+      let price = web3.utils.fromWei(event.returnValues.price, 'ether');
+
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(id).call({from: fromAddress})
+        ])
+      })().then(recipients => {
+        updateUnicornStatus(
+          id,
+          {
+            blockchain_id: id,
+            candy_breed_cost: price,
+            operation_id: 6,
+            operation_status_id: 2
+          },
+          'pair-posted',
+          recipients,
+          {
+            unicornId: id,
+            price: price, //TODO check
+          });
+      })
+    })
+    .on('error', log);
+
+
+  br_contract.events.HybridizationDelete()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.unicornId);
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(id).call({from: fromAddress})
+        ]);
+      })().then(recipients => {
+        updateUnicornStatus(
+          id,
+          {
+            blockchain_id: id,
+            candy_breed_cost: '',
+            operation_id: 8,
+            operation_status_id: 2,
+          },
+          'pair-revoke',
+          recipients,
+          {
+            unicornId: id,
+          });
+      })
+    })
+    .on('error', log);
+
+
+  br_contract.events.OfferAdd()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.unicornId);
+      let _priceEth = web3.utils.toBN(event.returnValues.priceEth);
+      let _priceCandy = web3.utils.toBN(event.returnValues.priceCandy);
+      // let priceEth = web3.utils.fromWei(event.returnValues.priceEth, 'ether');
+      // let priceCandy = web3.utils.fromWei(event.returnValues.priceCandy, 'ether');
+      let priceEth = web3.utils.fromWei(_priceEth, 'ether')
+      let priceCandy = web3.utils.fromWei(_priceCandy, 'ether')
+      if (_priceEth.isZero() && !_priceCandy.isZero()) {
+        priceEth = ''
+      } else if (_priceCandy.isZero() && !_priceEth.isZero()) {
+        priceCandy = ''
+      }
+
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(id).call({from: fromAddress})
+        ]);
+      })().then(recipients => {
+        updateUnicornStatus(
+          id,
+          {
+            blockchain_id: id,
+            cost: priceEth,
+            candy_cost: priceCandy,
+            operation_id: 2,
+            operation_status_id: 2
+          },
+          'offer-posted',
+          recipients,
+          {
+            unicornId: id,
+            priceEth: priceEth,
+            priceCandy: priceCandy
+          });
+      })
+    })
+    .on('error', log);
+
+
+  br_contract.events.OfferDelete()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.unicornId);
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(id).call({from: fromAddress})
+        ]);
+      })().then(recipients => {
+        updateUnicornStatus(
+          id,
+          {
+            blockchain_id: id,
+            cost: '',
+            candy_cost: '',
+            operation_id: 5,
+            operation_status_id: 2
+          },
+          'offer-deleted',
+          recipients,
+          {
+            unicornId: id,
+          });
+      })
+    })
+    .on('error', log);
+
+
+  br_contract.events.UnicornSold()
+    .on('data', function (event) {
+      let id = parseInt(event.returnValues.unicornId);
+      (async () => {
+        return await Promise.all([
+          ut_contract.methods.ownerOf(id).call({from: fromAddress})
+        ]);
+      })().then(recipients => {
+        updateUnicornStatus(
+          id,
+          {
+            blockchain_id: id,
+            cost: '',
+            candy_cost: '',
+            operation_id: 4,
+            operation_status_id: 2
+          },
+          'purchase-done',
+          recipients,
+          {
+            unicornId: id,
+          });
+      })
+    })
+    .on('error', log);
+
+
+  ut_contract.events.Transfer()
+    .on('data', function (event) {
+      let unicornId = parseInt(event.returnValues.unicornId);
+      // log('Transfer ' + unicornId.toString() + ' from: ' + event.returnValues.from + ' to ' + event.returnValues.to);
+
+      let recipients = [];
+      if (!web3.utils.toBN(event.returnValues.from).isZero()) {
+        recipients.push(event.returnValues.from);
+        publishUnicornEvent('transfer_remove', [event.returnValues.from], {
+          unicornId,
+          from: event.returnValues.from,
+          to: event.returnValues.to
         })
-        // .on('changed', function (event) {
-        //     // remove event from local database
-        //     console.warn('REMOVED', event);
-        // })
-        .on('error', log);
-
-
-    br_contract.events.HybridizationAccept()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.newUnicornId);
-            let firstId = parseInt(event.returnValues.firstUnicornId);
-            let secondId = parseInt(event.returnValues.secondUnicornId);
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(firstId).call({from: fromAddress}),
-                    ut_contract.methods.ownerOf(secondId).call({from: fromAddress})
-                ]);
-            })().then(recipients => {
-                updateUnicornStatus(
-                    firstId,
-                    {
-                        blockchain_id: firstId,
-                        candy_breed_cost: '',
-                        operation_id: 7,
-                        operation_status_id: 2,
-                    },
-                    'pair-accept',
-                    recipients,
-                    {
-                        unicornId: id,
-                        firstUnicornId: firstId,
-                        secondUnicornId: secondId,
-                    });
-            })
+      }
+      if (!web3.utils.toBN(event.returnValues.to).isZero()) {
+        recipients.push(event.returnValues.to);
+        publishUnicornEvent('transfer_add', [event.returnValues.to], {
+          unicornId,
+          from: event.returnValues.from,
+          to: event.returnValues.to
         })
-        // .on('changed', function (event) {
-        //     // remove event from local database
-        //     console.warn('REMOVED', event);
-        // })
-        .on('error', log);
+      }
+      if (recipients.length > 1) {
+        updateUnicornOwner(unicornId, {
+            owner_blockchain_id: event.returnValues.to
+          }
+          // , 'transfer', recipients, {
+          //     unicornId,
+          //     from: event.returnValues.from,
+          //     to: event.returnValues.to
+          // }
+        )
+        // } else {
+        //     publishUnicornEvent('transfer', recipients, {
+        //         unicornId,
+        //         from: event.returnValues.from,
+        //         to: event.returnValues.to
+        //     })
+      }
 
-    br_contract.events.HybridizationAdd()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.unicornId);
-            let price = web3.utils.fromWei(event.returnValues.price, 'ether');
-
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
-                ])
-            })().then(recipients => {
-                updateUnicornStatus(
-                    id,
-                    {
-                        blockchain_id: id,
-                        candy_breed_cost: price,
-                        operation_id: 6,
-                        operation_status_id: 2
-                    },
-                    'pair-posted',
-                    recipients,
-                    {
-                        unicornId: id,
-                        price: price, //TODO check
-                    });
-            })
-        })
-        .on('error', log);
-
-
-    br_contract.events.HybridizationDelete()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.unicornId);
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
-                ]);
-            })().then(recipients => {
-                updateUnicornStatus(
-                    id,
-                    {
-                        blockchain_id: id,
-                        candy_breed_cost: '',
-                        operation_id: 8,
-                        operation_status_id: 2,
-                    },
-                    'pair-revoke',
-                    recipients,
-                    {
-                        unicornId: id,
-                    });
-            })
-        })
-        .on('error', log);
-
-
-    br_contract.events.OfferAdd()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.unicornId);
-            let _priceEth = web3.utils.toBN(event.returnValues.priceEth);
-            let _priceCandy = web3.utils.toBN(event.returnValues.priceCandy);
-            // let priceEth = web3.utils.fromWei(event.returnValues.priceEth, 'ether');
-            // let priceCandy = web3.utils.fromWei(event.returnValues.priceCandy, 'ether');
-            let priceEth = web3.utils.fromWei(_priceEth, 'ether')
-            let priceCandy = web3.utils.fromWei(_priceCandy, 'ether')
-            if (_priceEth.isZero() && !_priceCandy.isZero()) {
-                priceEth = ''
-            } else if (_priceCandy.isZero() && !_priceEth.isZero()) {
-                priceCandy = ''
-            }
-
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
-                ]);
-            })().then(recipients => {
-                updateUnicornStatus(
-                    id,
-                    {
-                        blockchain_id: id,
-                        cost: priceEth,
-                        candy_cost: priceCandy,
-                        operation_id: 2,
-                        operation_status_id: 2
-                    },
-                    'offer-posted',
-                    recipients,
-                    {
-                        unicornId: id,
-                        priceEth: priceEth,
-                        priceCandy: priceCandy
-                    });
-            })
-        })
-        .on('error', log);
-
-
-    br_contract.events.OfferDelete()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.unicornId);
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
-                ]);
-            })().then(recipients => {
-                updateUnicornStatus(
-                    id,
-                    {
-                        blockchain_id: id,
-                        cost: '',
-                        candy_cost: '',
-                        operation_id: 5,
-                        operation_status_id: 2
-                    },
-                    'offer-deleted',
-                    recipients,
-                    {
-                        unicornId: id,
-                    });
-            })
-        })
-        .on('error', log);
-
-
-    br_contract.events.UnicornSold()
-        .on('data', function (event) {
-            let id = parseInt(event.returnValues.unicornId);
-            (async () => {
-                return await Promise.all([
-                    ut_contract.methods.ownerOf(id).call({from: fromAddress})
-                ]);
-            })().then(recipients => {
-                updateUnicornStatus(
-                    id,
-                    {
-                        blockchain_id: id,
-                        cost: '',
-                        candy_cost: '',
-                        operation_id: 4,
-                        operation_status_id: 2
-                    },
-                    'purchase-done',
-                    recipients,
-                    {
-                        unicornId: id,
-                    });
-            })
-        })
-        .on('error', log);
-
-
-    ut_contract.events.Transfer()
-        .on('data', function (event) {
-            let unicornId = parseInt(event.returnValues.unicornId);
-            // log('Transfer ' + unicornId.toString() + ' from: ' + event.returnValues.from + ' to ' + event.returnValues.to);
-
-            let recipients = [];
-            if (!web3.utils.toBN(event.returnValues.from).isZero()) {
-                recipients.push(event.returnValues.from);
-                publishUnicornEvent('transfer_remove', [event.returnValues.from], {
-                    unicornId,
-                    from: event.returnValues.from,
-                    to: event.returnValues.to
-                })
-            }
-            if (!web3.utils.toBN(event.returnValues.to).isZero()) {
-                recipients.push(event.returnValues.to);
-                publishUnicornEvent('transfer_add', [event.returnValues.to], {
-                    unicornId,
-                    from: event.returnValues.from,
-                    to: event.returnValues.to
-                })
-            }
-            if (recipients.length > 1) {
-                updateUnicornOwner(unicornId, {
-                        owner_blockchain_id: event.returnValues.to
-                    }
-                    // , 'transfer', recipients, {
-                    //     unicornId,
-                    //     from: event.returnValues.from,
-                    //     to: event.returnValues.to
-                    // }
-                )
-                // } else {
-                //     publishUnicornEvent('transfer', recipients, {
-                //         unicornId,
-                //         from: event.returnValues.from,
-                //         to: event.returnValues.to
-                //     })
-            }
-
-        })
-        // .on('changed', function (event) {
-        //     // remove event from local database
-        //     console.warn('REMOVED', event);
-        // })
-        .on('error', log);
-
+    })
+    // .on('changed', function (event) {
+    //     // remove event from local database
+    //     console.warn('REMOVED', event);
+    // })
+    .on('error', log);
+}
 
 function publishUnicornEvent(event, recipients, data) {
     log('EVENT:', event, recipients, data);
@@ -564,8 +564,7 @@ function requestUnicornGene(unicornId, owner, parent1Id, parent2Id) {
                     });
                 const data = bb_contract.methods.oracleCallback(unicornId, body.chain).encodeABI();
                 transaction_sem.take(() => {
-                  let _nonce = nonce++;
-                    log('trying set gene for',unicornId,'nonce:', _nonce);
+                    log('trying set gene for',unicornId,'nonce:', nonce);
                     web3_signer.eth.sendTransaction(
                         {
                             from: 0, //account index in wallet
@@ -574,10 +573,13 @@ function requestUnicornGene(unicornId, owner, parent1Id, parent2Id) {
                             gas: process.env.GASLIMIT,
                             gasPrice: process.env.GASPRICE, //1 gwei
                             data,
-                            _nonce
+                            nonce
                         })
                         .on('transactionHash', function (hash) {
-                            log('gene ' + unicornId + ' confirm, tx hash:', _nonce, hash);
+
+                            nonce++;
+                            transaction_sem.leave();
+                            log('gene ' + unicornId + ' confirm, tx hash:', nonce, hash);
                             publishUnicornEvent('geneconfirm', [
                                 owner,
                             ], {
@@ -585,7 +587,6 @@ function requestUnicornGene(unicornId, owner, parent1Id, parent2Id) {
                                 id: unicornId,
                                 // chain: body.chain
                             })
-                          transaction_sem.leave();
                         })
                         // .on('receipt', function (receipt) {
                         //     // log(receipt);
@@ -595,7 +596,6 @@ function requestUnicornGene(unicornId, owner, parent1Id, parent2Id) {
                             log('crash & respawn', e)
                             initWeb3Signer()
                         });
-
                 })
             } else {
                 log('gene request ' + unicornId + ' error: ', response.statusCode, response.request.path, response.request.body);

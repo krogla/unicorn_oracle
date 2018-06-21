@@ -4,15 +4,10 @@ let log = (...args) => {
   console.log('[' + new Date().toUTCString() + ']', ...args)
 };
 
+log('UnicornGO Oracle 2.1 by KRogLA');
+
 require('dotenv').config()
 const fs = require('fs')
-
-if (fs.existsSync(process.env.LOCKFILE)) {
-  log('locked')
-  process.exit(1)
-}
-
-
 const ethers = require('ethers')
 // const lockFile = require('lockfile')
 // const backend_sem = require('semaphore')(1)
@@ -20,6 +15,10 @@ const events_sem = require('semaphore')(1)
 const request = require('request')
 const redis_pub = require('redis').createClient()
 
+if (fs.existsSync(process.env.LOCKFILE)) {
+  console.log('locked')
+  process.exit(1)
+}
 fs.writeFileSync(process.env.LOCKFILE, '')
 // log(typeof process.env.TESTNET)
 let network = process.env.TESTNET === '1' ? ethers.providers.networks.rinkeby : ethers.providers.networks.homestead
@@ -35,8 +34,8 @@ let provider = new ethers.providers.FallbackProvider([
   etherscanProvider
 ])
 let wallet = new ethers.Wallet(process.env.ORACLE_KEY, provider);
+log('work on', provider.name, wallet.address)
 
-log('UnicornGO Oracle 2.1 by KRogLA /',provider.name, '/',wallet.address);
 
 let bb_contract = null
 let ut_contract = null
@@ -79,11 +78,22 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
     if (nonce != blockchainStatus[2]) {
       nonce = blockchainStatus[2]
     }
-    log("gasPrice", ethers.utils.formatUnits(gasPrice, 'gwei'),'gwei', '/ nonce', nonce, '/ blocks', fromBlock,"->", toBlock)
+    log("gasPrice", ethers.utils.formatUnits(gasPrice, 'gwei'), 'gwei, nonce', nonce, 'from', fromBlock,"to", toBlock)
     //breeding
     br_contract = new ethers.Contract(process.env.BREEDING_ADDRESS, process.env.BREEDING_ABI, wallet)
     ut_contract = new ethers.Contract(process.env.UNICORNTOKEN_ADDRESS, process.env.UNICORNTOKEN_ABI, wallet)
     bb_contract = new ethers.Contract(process.env.BLACKBOX_ADDRESS, process.env.BLACKBOX_ABI, wallet)
+
+    let blockchainEvents = {
+      CreateUnicorn: br_contract.interface.events.CreateUnicorn,
+      OfferAdd: br_contract.interface.events.OfferAdd,
+      UnicornSold: br_contract.interface.events.UnicornSold,
+      OfferDelete: br_contract.interface.events.OfferDelete,
+      HybridizationAdd: br_contract.interface.events.HybridizationAdd,
+      HybridizationAccept: br_contract.interface.events.HybridizationAccept,
+      HybridizationDelete: br_contract.interface.events.HybridizationDelete,
+      Transfer: ut_contract.interface.events.Transfer,
+    }
 
     let logs = [
       provider.getLogs({
@@ -105,7 +115,7 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
         toBlock: toBlock,
         address: process.env.UNICORNTOKEN_ADDRESS,
         topics: [
-          ut_contract.interface.events.Transfer.topics[0],
+          blockchainEvents.Transfer.topics[0],
         ]
       })
     ]
@@ -128,22 +138,11 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
       }))
     }
 
-    if (process.env.BREEDING_ADDRESS_OLD3) {
-      logs.push(provider.getLogs({
-        fromBlock: fromBlock,
-        toBlock: toBlock,
-        address: process.env.BREEDING_ADDRESS_OLD3,
-        topics: []
-      }))
-    }
-
     Promise.all(logs)
       .then(blockEvents => {
-        // console.log(blockEvents)
         let events = [].concat(
           blockEvents[0].filter(e => !e.removed),
-          blockEvents[1].filter(e => !e.removed),
-          // blockEvents[2] ? blockEvents[1].filter(e => !e.removed) : [],
+          blockEvents[1].filter(e => !e.removed)
         ).sort((a, b) => {
           let deltaBlock = a.blockNumber - b.blockNumber
           return deltaBlock !== 0 ? deltaBlock : a.logIndex - b.logIndex;
@@ -151,6 +150,43 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
 
         if (!events.length) finish()
 
+        // let txEvents = {}
+
+        for (let i = 0; i < events.length; i++) {
+          let e = events[i]
+          if (!txEvents.hasOwnProperty(e.transactionHash)) {
+            txEvents[e.transactionHash] = {}
+          }
+          txEvents[e.transactionHash][e.topics[0]] = e
+        }
+
+        for (let tx of txEvents) {
+          //1. если Create - владельца получаем из события, трансфер и остальные не обрабатываем
+          if (blockchainEvents.CreateUnicorn.topics[0] in tx) {
+            let eCreate = tx[blockchainEvents.CreateUnicorn.topics[0]]
+            log('parse create',e)
+            let workers = []
+            let dataCreate = blockchainEvents.CreateUnicorn.parse(e.topics, e.data)
+              //{unicornId, parent1, parent2, owner}
+            if (blockchainEvents.HybridizationAccept.topics[0] in tx) {
+
+            } else {
+              workers.push(eventCreateUnicorn(dataCreate))
+            }
+
+            Promise.all(workers).then(results => {
+
+            })
+
+          } else if (blockchainEvents.UnicornSold.topics[0] in tx) {
+            log('parse sold')
+
+          } else {
+
+          }
+          //2. если UnicornSold - то из события трансфер берем старого и нового владельца и им отправляем, остальные евенты обарабтываем как обычно
+        }
+        console.log(txEvents)
 
         for (let i = 0; i < events.length; i++) {
           let e = events[i]
@@ -164,6 +200,7 @@ Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTran
             })
           })
         }
+
       })
   })
 
@@ -209,7 +246,6 @@ function finish() {
     fs.writeFileSync(blockfile, JSON.stringify({completedBlock: autoMode ? toBlock : completedBlock, nonce}), 'utf8')
   // }
   fs.unlinkSync(process.env.LOCKFILE)
-  log('finished')
   process.exit(0)
 }
 
@@ -235,12 +271,12 @@ function eventTransfer({unicornId, from, to}) {
 
 function eventHybridizationAdd({unicornId, price}) {
   return new Promise(resolve => {
-    let _priceCandy = ethers.utils.formatEther(price)
+    let _price = ethers.utils.formatEther(price)
     Promise.all([ut_contract.functions.ownerOf(unicornId)]).then(recipients => {
       updateUnicornStatus(unicornId.toNumber(),
-        {blockchain_id: unicornId.toNumber(), candy_breed_cost: _priceCandy, operation_id: 6, operation_status_id: 2},
+        {blockchain_id: unicornId.toNumber(), candy_breed_cost: _price, operation_id: 6, operation_status_id: 2},
         'pair-posted', recipients,
-        {unicornId: unicornId.toNumber(), priceCandy: _priceCandy})
+        {unicornId: unicornId.toNumber(), price: _price})
         .then(resolve)
     })
   })
@@ -258,9 +294,8 @@ function eventHybridizationDelete({unicornId}) {
   })
 }
 
-function eventHybridizationAccept({newUnicornId, firstUnicornId, secondUnicornId, price}) {
+function eventHybridizationAccept({newUnicornId, firstUnicornId, secondUnicornId}) {
   return new Promise(resolve => {
-    let _priceCandy = ethers.utils.formatEther(price)
     Promise.all([
       ut_contract.functions.ownerOf(firstUnicornId),
       ut_contract.functions.ownerOf(secondUnicornId)
@@ -268,7 +303,7 @@ function eventHybridizationAccept({newUnicornId, firstUnicornId, secondUnicornId
       updateUnicornStatus(firstUnicornId.toNumber(),
         {blockchain_id: firstUnicornId.toNumber(), candy_breed_cost: '', operation_id: 7, operation_status_id: 2},
         'pair-accept', recipients,
-        {unicornId: newUnicornId.toNumber(), firstUnicornId: firstUnicornId.toNumber(), secondUnicornId: secondUnicornId.toNumber(), priceCandy: _priceCandy})
+        {unicornId: newUnicornId.toNumber(), firstUnicornId: firstUnicornId.toNumber(), secondUnicornId: secondUnicornId.toNumber()})
         .then(resolve)
     })
   })
@@ -328,7 +363,7 @@ function eventCreateUnicorn({unicornId, parent1, parent2, owner}) {
       ut_contract.functions.getGen(unicornId)
     ]).then(results => {
       let chain = results[0]
-      let gene = ethers.utils.toUtf8String(results[1])
+      let gene = !!ethers.utils.toUtf8String(results[1])
       // resolve(true)
       // return
       let actions = [

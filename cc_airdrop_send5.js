@@ -47,11 +47,11 @@ MongoClient.connect("mongodb://localhost:27017", function(err, client) {
 
     // web3.eth.getTransactionCount(web3.eth.accounts.wallet[0].address, 'pending')
     //     .then((_nonce) => {
-            nonce = 7819;
+            nonce = 18100;
             let cursor =  holders
                 .find({ count: { $gte: 1}, contract: false, candy: 0})
                 .sort({balance: -1})
-                .limit(1100)
+                .limit(1000)
                 .each((err, holder) => {
                     if(holder) {
                         // console.log(holder)

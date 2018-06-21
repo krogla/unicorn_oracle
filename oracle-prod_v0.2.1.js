@@ -34,18 +34,18 @@ let fromAddress = web3.eth.accounts.wallet[0].address
 // let fromAddress = "0x5a8aAD505a44165813ECDFa213d0615293e33671"
 log('oracle address:', fromAddress);
 const br_addr = process.env.BREEDING_ADDRESS;
-// const brdb_addr = process.env.BREEDINGDB_ADDRESS;
+const brdb_addr = process.env.BREEDINGDB_ADDRESS;
 const bb_addr = process.env.BLACKBOX_ADDRESS;
 const ut_addr = process.env.UNICORNTOKEN_ADDRESS;
 
 const br_abi = JSON.parse(process.env.BREEDING_ABI)
-// const brdb_abi = JSON.parse(process.env.BREEDINGDB_ABI)
+const brdb_abi = JSON.parse(process.env.BREEDINGDB_ABI)
 const bb_abi = JSON.parse(process.env.BLACKBOX_ABI)
 const ut_abi = JSON.parse(process.env.UNICORNTOKEN_ABI)
 
 // Define the br_contract ABI and Address
 let br_contract = new web3.eth.Contract(br_abi, br_addr);
-// let brdb_contract = new web3.eth.Contract(brdb_abi, brdb_addr);
+let brdb_contract = new web3.eth.Contract(brdb_abi, brdb_addr);
 let bb_contract = new web3.eth.Contract(bb_abi, bb_addr);
 let ut_contract = new web3.eth.Contract(ut_abi, ut_addr);
 // let ut_contract_infura = new web3_infura.eth.Contract(ut_abi, ut_addr);

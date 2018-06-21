@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Etherscan WebSocket API Demo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+  <script type="text/javascript">
+
+    var ws;
+    var socketurl;
+    if (location.protocol === 'https:') {
+      socketurl = "wss://socket.etherscan.io/wshandler";
+    } else {
+      socketurl = "ws://socket.etherscan.io/wshandler";
+    }
+
+    $().ready(function () {
+
+      //disable the certain buttons until a successfull connection is made
+      $("#btnDisconnect").prop("disabled", true);
+      $("#textSelect").prop("disabled", true);
+      $("#btnSend").prop("disabled", true);
+
+      $("#btnConnect").click(function () {
+        $("#spanStatus").text("connecting");
+        // A ping is REQUIRED every 20secs to keep websocket alive
+        ws = new WebSocket(socketurl);
+
+        ws.onopen = function () {
+          $("#spanStatus").text("Connected to " + socketurl + "");
+          var ping = pinger(ws);
+          //disable connect button
+          $("#btnConnect").prop("disabled", true);
+          //renable back the the other buttons
+          $("#btnDisconnect").prop("disabled", false);
+          $("#textSelect").prop("disabled", false);
+          $("#btnSend").prop("disabled", false);
+        };
+        ws.onmessage = function (evt) {
+          //we can parse the result into a json
+          //var obj = jQuery.parseJSON(evt.data);
+          //if (obj.event == 'pong') {
+          //    console.log("received: " + evt.data);
+          //}
+          var d = new Date();
+          $('#discussion').append('<li><pre>' + d.toLocaleTimeString() + ' : ' + evt.data + '</pre></li>');
+        };
+        ws.onerror = function (evt) {
+          $("#spanStatus").text(evt.message);
+          $('#discussion').append('<li><pre>Error! ' + evt.message + '</pre></li>');
+        };
+        ws.onclose = function () {
+          var d = new Date();
+          $("#spanStatus").text("DISCONNECTED from server");
+          $('#discussion').append('<li><pre>' + d.toLocaleTimeString() + ' : Disconnected from server</pre></li>');
+          //disable certain buttons upon disconnect
+          $("#btnConnect").prop("disabled", false);
+          $("#btnDisconnect").prop("disabled", true);
+          $("#textSelect").prop("disabled", true);
+          $("#btnSend").prop("disabled", true);
+        };
+      });
+      $("#btnSend").click(function () {
+        if (ws.readyState == WebSocket.OPEN) {
+          ws.send($("#textSelect").val());
+        }
+        else {
+          $("#spanStatus").text("Connection is closed");
+        }
+      });
+      $("#btnDisconnect").click(function () {
+        ws.close();
+      });
+    });
+
+
+    function pinger(ws) {
+      var timer = setInterval(function () {
+        if (ws.readyState == 1) {
+          ws.send(JSON.stringify({ event: "ping" }));
+          //console.log(JSON.stringify({ event: "ping" }));
+        }
+      }, 20000);
+      return { stop: function () { clearInterval(timer); } };
+    }
+
+  </script>
+</head>
+<body>
+<b>Etherscan Websocket API Demo</b><br />
+wss://socket.etherscan.io/wshandler<br />
+<a href="http://etherscan.io/apis#websocket">API Docs</a><br />
+<br /><br />
+<input type="button" value="Connect To Socket Server" id="btnConnect" /> &nbsp;<input type="button" value="Disconnect" id="btnDisconnect" /><br /><br />
+<select id="textSelect">
+  <option>{"event": "ping"}</option>
+  <option>{"event": "txlist", "address": "0x8d12A197cB00D4747a1fe03395095ce2A5CC6819"}</option>
+  <option>{"event": "txlist", "address": "0x93b7fa538913201066a262c03179c342262a7c76"}</option>
+  <option>{"event": "txlist", "address": "0xcf0010af06edff540af798d06e866d95cbdc8488"}</option>
+  <option>{"event": "txlist", "address": "0x5fde9da6056f8a651ae148c9c3a5364885f35548"}</option>
+  <option>{"event": "txlist", "address": "0x5a8aAD505a44165813ECDFa213d0615293e33671"}</option>
+  <option>Hello World</option>
+</select>
+<input type="button" value="Send" id="btnSend" /><br /><br />
+<span id="spanStatus">(display)</span>
+<ul id="discussion"></ul>
+</body>
+</html>
