@@ -49,6 +49,7 @@ let args = process.argv.slice(2);
 
 let fromBlock = parseInt(args[0] ? args[0] : '0')
 let toBlock = parseInt(args[1] ? args[1] : '0')
+let noEvents = !!args[2]
 let autoMode = fromBlock === 0
 
 if (fs.existsSync(blockfile)) {
@@ -465,15 +466,17 @@ function updateUnicorn(url, id, update_data, event = null, recipients = null, ev
 
 function publishUnicornEvent(event, recipients, data) {
   return new Promise(resolve => {
-    log('EVENT:', event, recipients, data);
-    redis_pub.publish(process.env.CHANNEL_USER_EVENTS,
-      JSON.stringify({
-        event,
-        data: {
-          recipients: recipients,
-          data: data
-        }
-      }))
+    if (!noEvents) {
+      log('EVENT:', event, recipients, data);
+      redis_pub.publish(process.env.CHANNEL_USER_EVENTS,
+        JSON.stringify({
+          event,
+          data: {
+            recipients: recipients,
+            data: data
+          }
+        }))
+    }
     resolve(true)
   })
 }
