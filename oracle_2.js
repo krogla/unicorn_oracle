@@ -63,16 +63,16 @@ if (fs.existsSync(blockfile)) {
   fs.writeFileSync(blockfile, JSON.stringify({completedBlock}), 'utf8')
 }
 
-
+let blockShift = 3 //skip latest 3 blocks due to probability of transaction reverts
 Promise.all([provider.getBlockNumber(), provider.getGasPrice(), provider.getTransactionCount(wallet.address)])
   .then(blockchainStatus => {
     if (autoMode) {
       let blocks = parseInt(process.env.BLOCKS)
       //skip latest block
-      if (fromBlock > blockchainStatus[0] - 1) fromBlock = blockchainStatus[0] - 1
-      toBlock = blockchainStatus[0] > fromBlock + blocks + 1 ? fromBlock + blocks : blockchainStatus[0] - 1
+      if (fromBlock > blockchainStatus[0] - blockShift) fromBlock = blockchainStatus[0] - blockShift
+      toBlock = blockchainStatus[0] - blockShift > fromBlock + blocks ? fromBlock + blocks : blockchainStatus[0] - blockShift
     } else {
-      if (toBlock === 0) toBlock = blockchainStatus[0]
+      if (toBlock === 0) toBlock = blockchainStatus[0] - blockShift
     }
     // let toBlock = results[0]
     if (gasPrice.gt(blockchainStatus[1])) gasPrice = blockchainStatus[1] //get min gasPrice
