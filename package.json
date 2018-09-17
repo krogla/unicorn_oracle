@@ -1,8 +1,6 @@
 {
   "private": true,
   "devDependencies": {
-    "cross-env": "^5.1",
-    "vue": "^2.5.7"
   },
   "dependencies": {
     "dotenv": "^5.0.1",

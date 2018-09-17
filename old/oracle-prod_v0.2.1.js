@@ -31,7 +31,6 @@ log('listening on '+process.env.NODE_ADDRESS_WS);
 // log('work on '+process.env.INFURA_ADDRESS);
 web3.eth.accounts.wallet.add(process.env.ORACLE_KEY);
 let fromAddress = web3.eth.accounts.wallet[0].address
-// let fromAddress = "0x5a8aAD505a44165813ECDFa213d0615293e33671"
 log('oracle address:', fromAddress);
 const br_addr = process.env.BREEDING_ADDRESS;
 const brdb_addr = process.env.BREEDINGDB_ADDRESS;

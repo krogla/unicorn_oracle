@@ -21,7 +21,6 @@ log('listening on '+process.env.NODE_ADDRESS_WS);
 
 web3.eth.accounts.wallet.add(process.env.RESURRECTOR_KEY);
 log('resurrector address:', web3.eth.accounts.wallet[0].address);
-// let fromAddress = "0x5a8aAD505a44165813ECDFa213d0615293e33671" //web3.eth.accounts.wallet[0].address
 let fromAddress =  web3.eth.accounts.wallet[0].address;
 // log('resurrector address:', fromAddress);
 
